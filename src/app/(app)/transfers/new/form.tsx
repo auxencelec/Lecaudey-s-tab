@@ -7,6 +7,7 @@ import { formatMoney, cn } from "@/lib/utils";
 import type { Profile, Space, Advance } from "@/lib/db.types";
 import Avatar from "@/components/Avatar";
 import CurrencySelect from "@/components/CurrencySelect";
+import { settleOrCreateAdvance } from "@/lib/settle";
 
 export default function TransferForm({
   me,
@@ -120,51 +121,30 @@ export default function TransferForm({
     setLoading(true);
     const supabase = createClient();
 
-    // 1. Auto-settle matching advances (oldest first) up to the payment amount.
-    //    "Matching" = same currency + same direction (family-as-one logic).
-    const sameCurrencyMatches = [...openAdvances]
-      .filter(matches)
-      .filter((a) => a.currency === currency)
-      .sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
-
-    let remainingPayment = Math.abs(num);
-    for (const adv of sameCurrencyMatches) {
-      if (remainingPayment <= 0) break;
-      const advRemaining = Number(adv.remaining);
-      if (advRemaining <= 0) continue;
-
-      const applied = Math.min(remainingPayment, advRemaining);
-      const newRemaining = advRemaining - applied;
-      const newStatus =
-        newRemaining === 0
-          ? "closed"
-          : newRemaining < Number(adv.amount)
-          ? "partial"
-          : "open";
-
-      const { error: upErr } = await supabase
-        .from("advances")
-        .update({
-          remaining: newRemaining,
-          status: newStatus,
-          closed_at: newStatus === "closed" ? new Date().toISOString() : null,
-        })
-        .eq("id", adv.id);
-
-      if (upErr) {
-        setError(upErr.message);
-        setLoading(false);
-        return;
-      }
-
-      remainingPayment -= applied;
+    // Payment from A (fromId) to B (toId):
+    //   - Reduces any existing A-owes-B debts (oldest first)
+    //   - If A overpays, creates a new B-owes-A advance for the surplus
+    // The helper handles both, treating parents as a single entity.
+    const settle = await settleOrCreateAdvance({
+      supabase,
+      family_id: me.family_id,
+      space_id: targetSpace.id,
+      new_debtor_id: toId, // the recipient becomes the new debtor if there's a surplus
+      new_creditor_id: fromId,
+      amount: Math.abs(num),
+      currency,
+      description: description || null,
+      source_transaction_id: null,
+      parent_ids: Array.from(parentIds),
+    });
+    if (!settle.ok) {
+      setError(settle.error ?? "Erreur d'enregistrement.");
+      setLoading(false);
+      return;
     }
 
-    // 2. Record the payment as a transaction (for the history feed).
-    const wasReimbursement = remainingPayment < Math.abs(num);
+    // Record the payment as a transaction for the history feed.
+    const wasReimbursement = settle.appliedToExisting > 0;
     const { error: insErr } = await supabase.from("transactions").insert({
       space_id: targetSpace.id,
       created_by: me.id,

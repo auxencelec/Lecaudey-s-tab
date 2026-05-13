@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, cn, formatMoney } from "@/lib/utils";
 import type { Profile, Space } from "@/lib/db.types";
 import CurrencySelect from "@/components/CurrencySelect";
+import { settleOrCreateAdvance } from "@/lib/settle";
 
 export default function ChildExpenseForm({
   me,
@@ -84,29 +85,31 @@ export default function ChildExpenseForm({
       return;
     }
 
-    // If reimbursable, create an advance against the family
-    // (using the first parent as the canonical representative).
+    // If reimbursable, net the new debt (family owes child) against any
+    // existing opposite-direction debts (child owes family). Only the
+    // leftover (if any) becomes a new advance.
     if (reimbursable && familyRep) {
-      const { error: advErr } = await supabase.from("advances").insert({
+      const result = await settleOrCreateAdvance({
+        supabase,
         family_id: me.family_id,
         space_id: space.id,
-        debtor_id: familyRep.id,
-        creditor_id: me.id,
+        new_debtor_id: familyRep.id,
+        new_creditor_id: me.id,
         amount: Math.abs(numAmount),
-        remaining: Math.abs(numAmount),
         currency,
         description: description || null,
         source_transaction_id: txRow?.id ?? null,
+        parent_ids: parents.map((p) => p.id),
       });
-      if (advErr) {
-        setError(advErr.message);
+      if (!result.ok) {
+        setError(result.error ?? "Erreur d'enregistrement.");
         setLoading(false);
         return;
       }
     }
 
-    router.push("/");
     router.refresh();
+    router.push("/");
   }
 
   return (

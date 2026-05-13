@@ -7,6 +7,7 @@ import { cn, formatMoney } from "@/lib/utils";
 import type { Profile, Space } from "@/lib/db.types";
 import CurrencySelect from "@/components/CurrencySelect";
 import Avatar from "@/components/Avatar";
+import { settleOrCreateAdvance } from "@/lib/settle";
 
 type Kind = "allowance" | "loan";
 
@@ -84,28 +85,31 @@ export default function ParentGiveForm({
       return;
     }
 
-    // For a loan, create an advance: child owes the family (represented by the family rep).
+    // For a loan, net the new debt (child owes family) against any
+    // existing opposite advances (family owes child) before creating
+    // a new one.
     if (kind === "loan") {
-      const { error: advErr } = await supabase.from("advances").insert({
+      const result = await settleOrCreateAdvance({
+        supabase,
         family_id: me.family_id,
         space_id: space.id,
-        debtor_id: childId,
-        creditor_id: familyRep.id,
+        new_debtor_id: childId,
+        new_creditor_id: familyRep.id,
         amount: Math.abs(numAmount),
-        remaining: Math.abs(numAmount),
         currency,
         description: description || null,
         source_transaction_id: txRow?.id ?? null,
+        parent_ids: parents.map((p) => p.id),
       });
-      if (advErr) {
-        setError(advErr.message);
+      if (!result.ok) {
+        setError(result.error ?? "Erreur d'enregistrement.");
         setLoading(false);
         return;
       }
     }
 
-    router.push("/");
     router.refresh();
+    router.push("/");
   }
 
   return (

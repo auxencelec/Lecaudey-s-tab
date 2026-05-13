@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
+
 import { convert } from "@/lib/currency/convert";
 import { formatMoney, CATEGORY_MAP } from "@/lib/utils";
 import type { Profile, Transaction, Advance } from "@/lib/db.types";
