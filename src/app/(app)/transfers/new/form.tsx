@@ -120,17 +120,58 @@ export default function TransferForm({
     setLoading(true);
     const supabase = createClient();
 
-    // Single transaction: credit the recipient's wallet (positive amount, concerns = recipient).
-    // The "from" side is implicit — a person paying back doesn't usually
-    // need their balance debited because their balance is their own pocket money.
-    // We record the transfer as: recipient gets +N (category remboursement or autre).
+    // 1. Auto-settle matching advances (oldest first) up to the payment amount.
+    //    "Matching" = same currency + same direction (family-as-one logic).
+    const sameCurrencyMatches = [...openAdvances]
+      .filter(matches)
+      .filter((a) => a.currency === currency)
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+
+    let remainingPayment = Math.abs(num);
+    for (const adv of sameCurrencyMatches) {
+      if (remainingPayment <= 0) break;
+      const advRemaining = Number(adv.remaining);
+      if (advRemaining <= 0) continue;
+
+      const applied = Math.min(remainingPayment, advRemaining);
+      const newRemaining = advRemaining - applied;
+      const newStatus =
+        newRemaining === 0
+          ? "closed"
+          : newRemaining < Number(adv.amount)
+          ? "partial"
+          : "open";
+
+      const { error: upErr } = await supabase
+        .from("advances")
+        .update({
+          remaining: newRemaining,
+          status: newStatus,
+          closed_at: newStatus === "closed" ? new Date().toISOString() : null,
+        })
+        .eq("id", adv.id);
+
+      if (upErr) {
+        setError(upErr.message);
+        setLoading(false);
+        return;
+      }
+
+      remainingPayment -= applied;
+    }
+
+    // 2. Record the payment as a transaction (for the history feed).
+    const wasReimbursement = remainingPayment < Math.abs(num);
     const { error: insErr } = await supabase.from("transactions").insert({
       space_id: targetSpace.id,
       created_by: me.id,
       concerns_id: toId,
       amount: Math.abs(num),
       currency,
-      category: settleAdvanceId ? "remboursement" : "autre",
+      category: wasReimbursement ? "remboursement" : "autre",
       description:
         description ||
         `${from?.full_name.split(" ")[0]} → ${to?.full_name.split(" ")[0]}`,
@@ -142,30 +183,8 @@ export default function TransferForm({
       return;
     }
 
-    // If settling an advance, update it.
-    if (matchingAdvance) {
-      const remaining = Math.max(
-        0,
-        Number(matchingAdvance.remaining) - Math.abs(num)
-      );
-      const newStatus =
-        remaining === 0
-          ? "closed"
-          : remaining < Number(matchingAdvance.amount)
-          ? "partial"
-          : "open";
-      await supabase
-        .from("advances")
-        .update({
-          remaining,
-          status: newStatus,
-          closed_at: newStatus === "closed" ? new Date().toISOString() : null,
-        })
-        .eq("id", matchingAdvance.id);
-    }
-
-    router.push("/");
     router.refresh();
+    router.push("/");
   }
 
   // Show only members the user can pay to/from (everyone in the family).
