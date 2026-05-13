@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { haptic } from "@/lib/haptics";
 
 function HomeIcon({ filled }: { filled?: boolean }) {
   return (
@@ -49,8 +50,9 @@ export default function BottomNav() {
     <Link
       key={href}
       href={href}
+      onClick={() => haptic("light")}
       className={cn(
-        "flex flex-col items-center justify-center gap-0.5 h-full transition",
+        "flex flex-col items-center justify-center gap-0.5 h-full transition active:scale-95",
         isActive ? "text-ink-900" : "text-ink-400 hover:text-ink-600"
       )}
     >
@@ -68,7 +70,8 @@ export default function BottomNav() {
         <div className="flex items-center justify-center">
           <Link
             href="/transactions/new"
-            className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-accent-600 text-white shadow-lg shadow-accent-600/30 hover:bg-accent-700 active:scale-95 transition"
+            onClick={() => haptic("medium")}
+            className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-accent-600 text-white shadow-lg shadow-accent-600/30 hover:bg-accent-700 active:scale-90 transition"
             aria-label="Nouvelle transaction"
           >
             <PlusIcon />

@@ -7,17 +7,20 @@ export async function GET() {
     (
       <div
         style={{
-          fontSize: 340,
-          background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
           width: "100%",
           height: "100%",
+          background: "linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "white",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+          color: "#ffffff",
+          fontSize: 260,
+          fontWeight: 700,
+          letterSpacing: -10,
         }}
       >
-        💰
+        Lt
       </div>
     ),
     { width: 512, height: 512 }

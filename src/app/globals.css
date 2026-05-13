@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 200ms ease-out both;
+}
+.animate-slide-up {
+  animation: slideUp 250ms ease-out both;
+}
+
 @theme {
   --color-ink-50: #f8fafc;
   --color-ink-100: #f1f5f9;
@@ -27,6 +42,7 @@
   --color-bad-600: #e11d48;
   --color-warm-500: #f59e0b;
   --color-warm-600: #d97706;
+  --color-warm-700: #b45309;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
@@ -41,11 +57,29 @@ html, body {
 body {
   background: white;
   color: var(--color-ink-900);
+  /* No pull-to-refresh / overscroll bounce on standalone PWA */
+  overscroll-behavior-y: none;
+  /* Tap highlight color (iOS / Android) — invisible by default; we add custom press states */
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Smooth scrolling + remove iOS pull-to-refresh bounce on standalone PWA */
 html {
   overscroll-behavior-y: none;
+  /* Use the full screen on iOS standalone mode */
+  height: 100%;
+}
+
+/* UI chrome should not allow text selection (feels like a real app) */
+nav, header, button, [role="button"], a[role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Form inputs still allow selection */
+input, textarea, select, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Hide native number input spinners */
@@ -62,4 +96,18 @@ input[type="number"] {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/* Smooth focus rings without harsh outlines */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: none;
+}
+
+/* Better date input look on iOS */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
 }
