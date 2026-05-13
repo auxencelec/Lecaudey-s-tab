@@ -155,7 +155,7 @@ export default function ParentGiveForm({
           À qui ?
         </label>
         <div className="bg-ink-50 rounded-2xl p-3 flex items-center gap-3">
-          <Avatar emoji={child?.avatar_emoji} size="sm" />
+          <Avatar emoji={child?.avatar_emoji} url={child?.avatar_url} size="sm" />
           <div className="relative flex-1">
             <select
               value={childId}

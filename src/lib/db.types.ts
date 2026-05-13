@@ -10,6 +10,7 @@ export type Profile = {
   role: Role;
   preferred_currency: string;
   avatar_emoji: string | null;
+  avatar_url: string | null;
   birth_year: number | null;
   created_at: string;
 };

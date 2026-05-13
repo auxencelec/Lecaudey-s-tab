@@ -102,7 +102,7 @@ export default async function MemberPage({
 
       {/* Hero */}
       <div className="text-center pt-2">
-        <Avatar emoji={member.avatar_emoji} size="xl" className="mx-auto" />
+        <Avatar emoji={member.avatar_emoji} url={member.avatar_url} size="xl" className="mx-auto" />
         <h1 className="text-2xl font-semibold tracking-tight mt-3">
           {member.full_name.split(" ")[0]}
         </h1>

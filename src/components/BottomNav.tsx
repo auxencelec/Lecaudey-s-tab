@@ -22,6 +22,16 @@ function PayIcon({ filled }: { filled?: boolean }) {
     </svg>
   );
 }
+function StatsIcon({ filled }: { filled?: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18" />
+      <rect x="5" y="11" width="3" height="8" rx="1" />
+      <rect x="10.5" y="6" width="3" height="13" rx="1" />
+      <rect x="16" y="14" width="3" height="5" rx="1" />
+    </svg>
+  );
+}
 function UserIcon({ filled }: { filled?: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -63,7 +73,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/90 backdrop-blur-xl border-t border-ink-100 pb-[env(safe-area-inset-bottom)]">
-      <div className="max-w-md mx-auto h-16 grid grid-cols-4 items-center">
+      <div className="max-w-md mx-auto h-16 grid grid-cols-5 items-center">
         {tab("/", "Accueil", HomeIcon, pathname === "/")}
         {tab("/transfers/new", "Payer", PayIcon, pathname.startsWith("/transfers"))}
 
@@ -78,6 +88,7 @@ export default function BottomNav() {
           </Link>
         </div>
 
+        {tab("/stats", "Récap", StatsIcon, pathname.startsWith("/stats"))}
         {tab("/settings", "Moi", UserIcon, pathname.startsWith("/settings"))}
       </div>
     </nav>

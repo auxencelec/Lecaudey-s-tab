@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { SUPPORTED_CURRENCIES } from "@/lib/utils";
+import { uploadAvatar } from "@/lib/avatar-upload";
 import type { Profile } from "@/lib/db.types";
 import Avatar from "@/components/Avatar";
 
@@ -15,10 +16,16 @@ export default function SettingsForm({
   email: string;
 }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [currency, setCurrency] = useState(me.preferred_currency);
-  const [avatar, setAvatar] = useState(me.avatar_emoji ?? "👤");
+  const [emoji, setEmoji] = useState(me.avatar_emoji ?? "👤");
+  const [avatarUrl, setAvatarUrl] = useState(me.avatar_url ?? "");
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Password change
   const [newPassword, setNewPassword] = useState("");
@@ -27,12 +34,49 @@ export default function SettingsForm({
   const [pwdError, setPwdError] = useState<string | null>(null);
   const [pwdSaved, setPwdSaved] = useState(false);
 
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadError(null);
+    setUploading(true);
+    const supabase = createClient();
+    const { url, error } = await uploadAvatar(supabase, me.id, file);
+
+    if (error || !url) {
+      setUploadError(error ?? "Erreur d'envoi.");
+      setUploading(false);
+      return;
+    }
+
+    await supabase
+      .from("profiles")
+      .update({ avatar_url: url })
+      .eq("id", me.id);
+
+    setAvatarUrl(url);
+    setUploading(false);
+    router.refresh();
+  }
+
+  async function removePhoto() {
+    setUploading(true);
+    const supabase = createClient();
+    await supabase
+      .from("profiles")
+      .update({ avatar_url: null })
+      .eq("id", me.id);
+    setAvatarUrl("");
+    setUploading(false);
+    router.refresh();
+  }
+
   async function save() {
     setLoading(true);
     const supabase = createClient();
     await supabase
       .from("profiles")
-      .update({ preferred_currency: currency, avatar_emoji: avatar })
+      .update({ preferred_currency: currency, avatar_emoji: emoji })
       .eq("id", me.id);
     setSavedAt(Date.now());
     setLoading(false);
@@ -72,22 +116,58 @@ export default function SettingsForm({
   return (
     <div className="space-y-7">
       {/* Identity */}
-      <div className="text-center py-4">
-        <Avatar emoji={avatar} size="xl" className="mx-auto" />
+      <div className="text-center py-2 flex flex-col items-center">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="relative group"
+          aria-label="Changer la photo"
+        >
+          <Avatar emoji={emoji} url={avatarUrl || null} size="xl" />
+          <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition flex items-center justify-center text-white text-xs font-medium">
+            {uploading ? "…" : avatarUrl ? "Changer" : "Photo"}
+          </div>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="user"
+          className="hidden"
+          onChange={handleAvatarChange}
+        />
         <h2 className="text-xl font-semibold tracking-tight mt-3">
           {me.full_name}
         </h2>
         <p className="text-sm text-ink-500 mt-0.5">
           {me.role === "parent" ? "Parent" : "Enfant"} · {email}
         </p>
+        {avatarUrl && (
+          <button
+            type="button"
+            onClick={removePhoto}
+            className="mt-2 text-xs text-ink-400 hover:text-bad-600"
+          >
+            Retirer la photo
+          </button>
+        )}
+        {uploadError && (
+          <div className="text-sm text-bad-600 bg-bad-500/10 rounded-xl px-3 py-2 mt-3">
+            {uploadError}
+          </div>
+        )}
       </div>
 
-      {/* Avatar emoji */}
-      <Field label="Avatar">
+      {/* Emoji fallback */}
+      <Field
+        label="Emoji (utilisé si pas de photo)"
+        hint="Affiché à la place de la photo dans les listes."
+      >
         <input
           type="text"
-          value={avatar}
-          onChange={(e) => setAvatar(e.target.value.slice(0, 2))}
+          value={emoji}
+          onChange={(e) => setEmoji(e.target.value.slice(0, 2))}
           maxLength={2}
           className="w-16 bg-ink-50 rounded-xl px-3 py-2 text-center text-xl focus:bg-white focus:ring-2 focus:ring-accent-500 outline-none transition"
         />

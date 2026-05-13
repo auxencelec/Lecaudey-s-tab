@@ -139,7 +139,7 @@ export default async function DashboardPage() {
           </h1>
         </div>
         <Link href="/settings">
-          <Avatar emoji={me.avatar_emoji} size="md" />
+          <Avatar emoji={me.avatar_emoji} url={me.avatar_url} size="md" />
         </Link>
       </header>
 
@@ -209,7 +209,7 @@ export default async function DashboardPage() {
                       href={`/members/${m.id}`}
                       className="flex items-center gap-3 flex-1 min-w-0"
                     >
-                      <Avatar emoji={m.avatar_emoji} size="md" />
+                      <Avatar emoji={m.avatar_emoji} url={m.avatar_url} size="md" />
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-ink-900 truncate">
                           {m.full_name.split(" ")[0]}

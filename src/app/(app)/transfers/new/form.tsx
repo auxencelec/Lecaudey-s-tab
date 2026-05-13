@@ -330,7 +330,7 @@ function PartyPicker({
       <div className="text-xs font-medium text-ink-500 w-20 shrink-0">
         {label}
       </div>
-      <Avatar emoji={selected?.avatar_emoji} size="sm" />
+      <Avatar emoji={selected?.avatar_emoji} url={selected?.avatar_url} size="sm" />
       <div className="relative flex-1">
         <select
           value={value}
