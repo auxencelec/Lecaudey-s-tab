@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Trésor — Budget famille",
-    short_name: "Trésor",
+    name: "Lecaudey's Tab",
+    short_name: "Lecaudey's Tab",
     description:
       "Le budget partagé de la famille : argent de poche, vacances, avances, transports…",
     start_url: "/",

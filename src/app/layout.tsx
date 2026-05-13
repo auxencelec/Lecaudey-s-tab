@@ -9,14 +9,14 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Trésor",
+  title: "Lecaudey's Tab",
   description:
     "Le budget partagé de la famille : argent de poche, vacances, avances, transports.",
-  applicationName: "Trésor",
+  applicationName: "Lecaudey's Tab",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Trésor",
+    title: "Lecaudey's Tab",
   },
   formatDetection: { telephone: false },
 };

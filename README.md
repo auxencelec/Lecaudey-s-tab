@@ -1,4 +1,4 @@
-# Trésor — Budget famille Lecaudey
+# Lecaudey's Tab — Budget famille
 
 PWA pour gérer le budget de la famille : argent de poche, vacances, avances, loyer,
 billets de train/avion, etc. Multi-utilisateurs (parents + enfants), multi-devises,
