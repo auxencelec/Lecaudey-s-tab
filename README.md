@@ -1,36 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Trésor — Budget famille Lecaudey
 
-## Getting Started
+PWA pour gérer le budget de la famille : argent de poche, vacances, avances, loyer,
+billets de train/avion, etc. Multi-utilisateurs (parents + enfants), multi-devises,
+installable sur tout téléphone/tablette/desktop.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** (App Router, React Server Components)
+- **Tailwind CSS v4**
+- **Supabase** (Postgres + Auth + Row Level Security)
+- **Frankfurter API** pour la conversion de devises (gratuit, sans clé)
+- **PWA** : manifest + icônes générées dynamiquement (`next/og`)
+
+## Configuration initiale
+
+### 1. Récupérer les clés Supabase
+
+Dans [Supabase](https://app.supabase.com) → ton projet → **Project Settings → API** :
+- `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
+- `anon public` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `service_role` (secret) → `SUPABASE_SERVICE_ROLE_KEY`
+
+Crée un fichier `.env.local` à la racine :
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
+# édite .env.local avec tes 3 valeurs
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Appliquer le schéma SQL
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Dans Supabase → **SQL Editor** → New query → colle le contenu de :
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. `supabase/migrations/0001_init.sql` → Run
+2. `supabase/migrations/0002_seed_family.sql` → Run
 
-## Learn More
+Cela crée toutes les tables (`families`, `profiles`, `spaces`, `transactions`, `advances`, `allowances`) et les politiques **Row Level Security** qui isolent les données entre enfants.
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Créer les comptes famille
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Le script ci-dessous crée :
+- 1 famille "Lecaudey"
+- 6 comptes Auth (Sébastien, Julie, Auxence, Callixte, Théoxane, Eudoxe)
+- 6 profils liés
+- 4 espaces privés (1 par enfant, contenant parents + cet enfant)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+node scripts/setup-family.mjs
+```
 
-## Deploy on Vercel
+Mot de passe par défaut : `Lecaudey2026!` (configurable via `DEFAULT_PASSWORD=… node scripts/setup-family.mjs`).
+**Chaque membre doit changer son mot de passe à la première connexion.**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 4. Lancer en local
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm install
+npm run dev
+```
+
+→ http://localhost:3000
+
+## Déploiement (Vercel)
+
+1. Push le repo sur GitHub.
+2. Sur [Vercel](https://vercel.com), **New Project** → importe le repo GitHub.
+3. Dans **Settings → Environment Variables**, ajoute les 3 mêmes variables que `.env.local`.
+4. Deploy. Vercel te donne une URL `https://xxx.vercel.app`.
+
+## Installer sur les téléphones de la famille
+
+### iPhone / iPad (Safari)
+1. Ouvre l'URL Vercel dans Safari.
+2. Touche **Partager** (icône carré + flèche).
+3. **Sur l'écran d'accueil** → Ajouter.
+
+### Android (Chrome / Edge)
+1. Ouvre l'URL.
+2. Chrome propose automatiquement **"Installer l'appli"** (sinon menu ⋮ → Installer).
+
+### Desktop (Mac / Windows)
+- Chrome / Edge : icône **+ Installer** dans la barre d'adresse.
+
+## Modèle de données
+
+- `families` : 1 ligne (Lecaudey).
+- `profiles` : 1 ligne par membre (lié à `auth.users`), avec rôle (`parent` / `child`) et devise préférée.
+- `spaces` : conteneurs de transactions.
+  - `kind = 'private'` : un seul enfant ↔ parents. Les autres enfants n'y ont **pas accès**.
+  - `kind = 'group'` : créé par un parent, membres choisis (ex: "Vacances Corse").
+- `space_members` : qui peut voir quel espace.
+- `transactions` : `amount` (signé) + `currency` + `category` + `concerns_id` (à qui ça affecte le solde) + `space_id`.
+- `advances` : créances ouvertes entre membres (qui doit quoi à qui, restant à rembourser).
+- `allowances` : argent de poche récurrent par enfant (montant + fréquence).
+
+**Sécurité** : toutes les tables ont des politiques RLS. Un enfant ne voit que :
+- les profils de la famille (noms only)
+- son espace privé + les groupes dont il fait partie
+- les transactions de ces espaces
+- les avances où il est créancier ou débiteur
+
+Les parents voient tout dans leur famille.
+
+## Conversion de devises
+
+Chaque transaction stocke `(amount, currency)` en devise d'origine. À l'affichage, tout est converti dans la **devise préférée** de l'utilisateur connecté (réglage dans Réglages → Devise).
+
+Les taux viennent de [Frankfurter](https://frankfurter.dev), gratuit et sans clé, mis en cache 1h.
+
+## Roadmap (post-MVP)
+
+- [ ] Groupes : UI pour créer/gérer (DB déjà prête côté schema + RLS)
+- [ ] Argent de poche automatique : cron Supabase Edge Function
+- [ ] Notifications push (Web Push API)
+- [ ] Export CSV / PDF mensuel
+- [ ] Objectifs d'épargne par enfant
+- [ ] Graphiques (répartition catégories)
+
+## Scripts
+
+```bash
+npm run dev          # dev server
+npm run build        # production build
+npm run start        # production server
+npm run lint         # eslint
+node scripts/setup-family.mjs   # seed la famille
+```
