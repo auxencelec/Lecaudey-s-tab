@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 import { convert } from "@/lib/currency/convert";
+import { compactFamilyAdvances } from "@/lib/settle";
 import { formatMoney, CATEGORY_MAP } from "@/lib/utils";
 import type { Profile, Transaction, Advance } from "@/lib/db.types";
 import { format, parseISO } from "date-fns";
@@ -36,6 +37,16 @@ export default async function MemberPage({
     .single<Profile>();
 
   if (!me || !member) notFound();
+
+  // Self-heal: net any opposite-direction open advances before reading.
+  const { data: familyMembers } = await supabase
+    .from("profiles")
+    .select("id, role")
+    .eq("family_id", me.family_id);
+  const parentIds = (familyMembers ?? [])
+    .filter((m) => m.role === "parent")
+    .map((m) => m.id);
+  await compactFamilyAdvances(supabase, me.family_id, parentIds);
 
   const { data: tx } = await supabase
     .from("transactions")

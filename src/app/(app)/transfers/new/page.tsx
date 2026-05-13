@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { compactFamilyAdvances } from "@/lib/settle";
 import type { Profile, Space, Advance } from "@/lib/db.types";
 import TransferForm from "./form";
+
+export const dynamic = "force-dynamic";
+
 
 export default async function NewTransferPage({
   searchParams,
@@ -27,6 +31,12 @@ export default async function NewTransferPage({
     .select("*")
     .eq("family_id", me.family_id)
     .returns<Profile[]>();
+
+  // Self-heal: compact opposite-direction advances before reading.
+  const parentIds = (members ?? [])
+    .filter((m) => m.role === "parent")
+    .map((m) => m.id);
+  await compactFamilyAdvances(supabase, me.family_id, parentIds);
 
   const { data: spaces } = await supabase
     .from("spaces")

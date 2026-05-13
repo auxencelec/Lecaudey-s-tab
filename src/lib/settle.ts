@@ -1,4 +1,103 @@
 /**
+ * Compact existing open advances in the family by netting opposite-direction
+ * pairs (per currency, per child). Idempotent — safe to run on every page load.
+ *
+ * Example: if parents owe Auxence 100 EUR AND Auxence owes parents 70 EUR,
+ * after compaction:
+ *   - parents owe Auxence 30 EUR (single open advance net)
+ *   - the other advance is closed
+ */
+export async function compactFamilyAdvances(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  family_id: string,
+  parent_ids: string[]
+): Promise<void> {
+  const { data: allOpen } = await supabase
+    .from("advances")
+    .select("*")
+    .eq("family_id", family_id)
+    .neq("status", "closed");
+
+  if (!allOpen || allOpen.length === 0) return;
+
+  const parentSet = new Set(parent_ids);
+
+  // Group by (currency, childId) where advance is between a parent and a child.
+  type Bucket = { childOwes: Adv[]; familyOwes: Adv[] };
+  type Adv = {
+    id: string;
+    amount: number | string;
+    remaining: number | string;
+    debtor_id: string;
+    creditor_id: string;
+    currency: string;
+    created_at: string;
+  };
+  const groups = new Map<string, Bucket>();
+
+  for (const a of allOpen as Adv[]) {
+    const debtorIsParent = parentSet.has(a.debtor_id);
+    const creditorIsParent = parentSet.has(a.creditor_id);
+    let childId: string | null = null;
+    if (debtorIsParent && !creditorIsParent) childId = a.creditor_id;
+    else if (creditorIsParent && !debtorIsParent) childId = a.debtor_id;
+    else continue;
+
+    const key = `${a.currency}:${childId}`;
+    const g = groups.get(key) ?? { childOwes: [], familyOwes: [] };
+    if (creditorIsParent) g.childOwes.push(a);
+    else g.familyOwes.push(a);
+    groups.set(key, g);
+  }
+
+  const sortByOldest = (x: Adv, y: Adv) =>
+    new Date(x.created_at).getTime() - new Date(y.created_at).getTime();
+
+  for (const { childOwes, familyOwes } of groups.values()) {
+    const totalChildOwes = childOwes.reduce(
+      (s, a) => s + Number(a.remaining),
+      0
+    );
+    const totalFamilyOwes = familyOwes.reduce(
+      (s, a) => s + Number(a.remaining),
+      0
+    );
+    const cancel = Math.min(totalChildOwes, totalFamilyOwes);
+    if (cancel <= 0) continue;
+
+    const reduceList = async (list: Adv[]) => {
+      let toReduce = cancel;
+      for (const adv of [...list].sort(sortByOldest)) {
+        if (toReduce <= 0) break;
+        const rem = Number(adv.remaining);
+        if (rem <= 0) continue;
+        const applied = Math.min(toReduce, rem);
+        const newRem = rem - applied;
+        const newStatus =
+          newRem === 0
+            ? "closed"
+            : newRem < Number(adv.amount)
+            ? "partial"
+            : "open";
+        await supabase
+          .from("advances")
+          .update({
+            remaining: newRem,
+            status: newStatus,
+            closed_at: newStatus === "closed" ? new Date().toISOString() : null,
+          })
+          .eq("id", adv.id);
+        toReduce -= applied;
+      }
+    };
+
+    await reduceList(childOwes);
+    await reduceList(familyOwes);
+  }
+}
+
+/**
  * Auto-netting helper for advances.
  *
  * Whenever a new debt is created (e.g. child expense, parent loan, payment),

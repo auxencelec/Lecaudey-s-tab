@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 import { convert } from "@/lib/currency/convert";
+import { compactFamilyAdvances } from "@/lib/settle";
 import { formatMoney, CATEGORY_MAP } from "@/lib/utils";
 import type { Profile, Transaction, Advance } from "@/lib/db.types";
 import { format, parseISO, isToday, isYesterday } from "date-fns";
@@ -53,6 +54,12 @@ export default async function DashboardPage() {
     .order("role")
     .order("birth_year", { ascending: true })
     .returns<Profile[]>();
+
+  // Self-healing: net out any opposite-direction open advances first.
+  const parentIds = (members ?? [])
+    .filter((m) => m.role === "parent")
+    .map((m) => m.id);
+  await compactFamilyAdvances(supabase, me.family_id, parentIds);
 
   const { data: openAdvances } = await supabase
     .from("advances")
