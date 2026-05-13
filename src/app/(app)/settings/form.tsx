@@ -20,6 +20,13 @@ export default function SettingsForm({
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Password change
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdSaved, setPwdSaved] = useState(false);
+
   async function save() {
     setLoading(true);
     const supabase = createClient();
@@ -30,6 +37,36 @@ export default function SettingsForm({
     setSavedAt(Date.now());
     setLoading(false);
     router.refresh();
+  }
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwdError(null);
+    setPwdSaved(false);
+
+    if (newPassword.length < 8) {
+      setPwdError("Le mot de passe doit faire au moins 8 caractères.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwdError("Les deux mots de passe ne correspondent pas.");
+      return;
+    }
+
+    setPwdLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setPwdLoading(false);
+
+    if (error) {
+      setPwdError(error.message);
+      return;
+    }
+
+    setPwdSaved(true);
+    setNewPassword("");
+    setConfirmPassword("");
+    setTimeout(() => setPwdSaved(false), 4000);
   }
 
   return (
@@ -74,7 +111,7 @@ export default function SettingsForm({
         </select>
       </Field>
 
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex items-center gap-3">
         <button
           onClick={save}
           disabled={loading}
@@ -87,7 +124,55 @@ export default function SettingsForm({
         )}
       </div>
 
-      <hr className="border-ink-100 my-4" />
+      <hr className="border-ink-100" />
+
+      {/* Password change */}
+      <form onSubmit={changePassword} className="space-y-3">
+        <h3 className="text-xs uppercase tracking-widest text-ink-400 font-medium">
+          Mot de passe
+        </h3>
+        <Field label="Nouveau mot de passe">
+          <input
+            type="password"
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="••••••••"
+            className="w-full bg-ink-50 rounded-2xl px-4 py-3 focus:bg-white focus:ring-2 focus:ring-accent-500 outline-none transition"
+          />
+        </Field>
+        <Field label="Confirmer">
+          <input
+            type="password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="••••••••"
+            className="w-full bg-ink-50 rounded-2xl px-4 py-3 focus:bg-white focus:ring-2 focus:ring-accent-500 outline-none transition"
+          />
+        </Field>
+
+        {pwdError && (
+          <div className="text-sm text-bad-600 bg-bad-500/10 rounded-xl px-3 py-2">
+            {pwdError}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={pwdLoading || !newPassword || !confirmPassword}
+            className="bg-ink-900 hover:bg-ink-800 disabled:opacity-50 text-white font-medium px-5 py-3 rounded-2xl transition active:scale-[0.98]"
+          >
+            {pwdLoading ? "…" : "Changer le mot de passe"}
+          </button>
+          {pwdSaved && (
+            <span className="text-sm text-good-600">Mis à jour ✓</span>
+          )}
+        </div>
+      </form>
+
+      <hr className="border-ink-100" />
 
       <form action="/auth/signout" method="post">
         <button
