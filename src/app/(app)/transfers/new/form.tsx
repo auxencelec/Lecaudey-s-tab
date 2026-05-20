@@ -253,8 +253,11 @@ export default function TransferForm({
                     : "bg-ink-50 hover:bg-ink-100"
                 )}
               >
-                <div className="w-8 h-8 rounded-full bg-warm-500/10 text-warm-600 flex items-center justify-center text-sm">
-                  ⏳
+                <div className="w-8 h-8 rounded-full bg-warm-500/10 text-warm-600 flex items-center justify-center">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v5l3 2" />
+                  </svg>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">

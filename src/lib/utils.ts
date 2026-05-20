@@ -17,6 +17,14 @@ export function formatMoney(amount: number, currency: string, locale = "fr-FR") 
   }
 }
 
+/**
+ * Emoji policy in this app:
+ *   1. Category emojis  — only on transaction rows / category labels (this list).
+ *   2. Avatar emojis    — only as user identity fallback when no photo.
+ *   3. Empty-state mark — 📭 (one and only).
+ * Everything else should be SVG icons or pure text. Don't sprinkle decorative
+ * emojis on buttons, status messages, or banners.
+ */
 export const CATEGORIES = [
   { value: "argent_de_poche", label: "Argent de poche", emoji: "💶" },
   { value: "vacances", label: "Vacances", emoji: "🏖️" },

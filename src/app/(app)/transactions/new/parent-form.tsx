@@ -127,7 +127,7 @@ export default function ParentGiveForm({
                 : "text-ink-500"
             )}
           >
-            💵 Argent de poche
+            Argent de poche
           </button>
           <button
             type="button"
@@ -139,7 +139,7 @@ export default function ParentGiveForm({
                 : "text-ink-500"
             )}
           >
-            🤝 Prêt
+            Avance
           </button>
         </div>
         <p className="text-xs text-ink-400 mt-2 px-1">

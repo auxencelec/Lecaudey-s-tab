@@ -170,13 +170,13 @@ export default async function MemberPage({
             href={`/transactions/new?member=${member.id}`}
             className="flex items-center gap-2 justify-center py-3 rounded-2xl bg-accent-600 hover:bg-accent-700 text-white font-medium text-sm transition"
           >
-            💵 Donner
+            Donner
           </Link>
           <Link
             href={`/transfers/new?to=${member.id}&from=${me.id}`}
             className="flex items-center gap-2 justify-center py-3 rounded-2xl bg-ink-50 hover:bg-ink-100 text-ink-900 font-medium text-sm transition"
           >
-            💸 Rembourser
+            Rembourser
           </Link>
         </div>
       )}

@@ -35,7 +35,7 @@ export default async function DashboardPage() {
   if (!me) {
     return (
       <div className="pt-20 text-center">
-        <div className="text-5xl mb-4">🤷</div>
+        <div className="text-5xl mb-4">📭</div>
         <p className="text-ink-600">
           Ton compte est créé mais ton profil famille n&apos;existe pas. Un parent
           doit l&apos;ajouter.
@@ -179,7 +179,7 @@ export default async function DashboardPage() {
                 Comptes équilibrés
               </p>
               <div className="mt-1 text-2xl font-semibold tracking-tight text-ink-500">
-                Tout est à jour ✨
+                Tout est à jour.
               </div>
             </div>
           )}
