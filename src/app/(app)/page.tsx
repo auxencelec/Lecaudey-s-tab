@@ -264,9 +264,10 @@ export default async function DashboardPage() {
                 : null;
               const amount = Number(t.amount);
               return (
-                <div
+                <Link
                   key={t.id}
-                  className="flex items-center gap-3 py-2.5 px-3 -mx-3 rounded-2xl hover:bg-ink-50 transition"
+                  href={`/transactions/${t.id}`}
+                  className="flex items-center gap-3 py-2.5 px-3 -mx-3 rounded-2xl hover:bg-ink-50 active:bg-ink-100 transition"
                 >
                   <div className="w-10 h-10 rounded-full bg-ink-100 flex items-center justify-center text-lg">
                     {cat?.emoji ?? "📌"}
@@ -288,7 +289,7 @@ export default async function DashboardPage() {
                     {amount >= 0 ? "+" : ""}
                     {formatMoney(amount, t.currency)}
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>

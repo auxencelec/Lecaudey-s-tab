@@ -23,7 +23,6 @@ export default function ChildExpenseForm({
   const [category, setCategory] = useState<string>("transport");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [reimbursable, setReimbursable] = useState(true);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +36,10 @@ export default function ChildExpenseForm({
     [spaces, me.id]
   );
 
-  // Categories shown to children, excluding parent-only ones
-  const childCategories = CATEGORIES.filter(
-    (c) => c.value !== "remboursement" && c.value !== "avance"
+  // Categories shown to children — only those that make sense for a
+  // reimbursable family expense.
+  const childCategories = CATEGORIES.filter((c) =>
+    ["vacances", "loyer", "transport", "cadeau", "autre"].includes(c.value)
   );
 
   const numAmount = parseFloat(amount.replace(",", ".")) || 0;
@@ -55,7 +55,7 @@ export default function ChildExpenseForm({
       setError("Espace privé introuvable.");
       return;
     }
-    if (reimbursable && !familyRep) {
+    if (!familyRep) {
       setError("Aucun parent enregistré dans la famille.");
       return;
     }
@@ -63,7 +63,8 @@ export default function ChildExpenseForm({
     setLoading(true);
     const supabase = createClient();
 
-    // Record the expense as a debit on the child's "out of pocket" record.
+    // Every child expense is reimbursable by the parents — track it
+    // as a debit on the child's ledger.
     const { data: txRow, error: txErr } = await supabase
       .from("transactions")
       .insert({
@@ -85,27 +86,23 @@ export default function ChildExpenseForm({
       return;
     }
 
-    // If reimbursable, net the new debt (family owes child) against any
-    // existing opposite-direction debts (child owes family). Only the
-    // leftover (if any) becomes a new advance.
-    if (reimbursable && familyRep) {
-      const result = await settleOrCreateAdvance({
-        supabase,
-        family_id: me.family_id,
-        space_id: space.id,
-        new_debtor_id: familyRep.id,
-        new_creditor_id: me.id,
-        amount: Math.abs(numAmount),
-        currency,
-        description: description || null,
-        source_transaction_id: txRow?.id ?? null,
-        parent_ids: parents.map((p) => p.id),
-      });
-      if (!result.ok) {
-        setError(result.error ?? "Erreur d'enregistrement.");
-        setLoading(false);
-        return;
-      }
+    // Net the new family debt against any existing opposite advances.
+    const result = await settleOrCreateAdvance({
+      supabase,
+      family_id: me.family_id,
+      space_id: space.id,
+      new_debtor_id: familyRep.id,
+      new_creditor_id: me.id,
+      amount: Math.abs(numAmount),
+      currency,
+      description: description || null,
+      source_transaction_id: txRow?.id ?? null,
+      parent_ids: parents.map((p) => p.id),
+    });
+    if (!result.ok) {
+      setError(result.error ?? "Erreur d'enregistrement.");
+      setLoading(false);
+      return;
     }
 
     router.refresh();
@@ -117,7 +114,7 @@ export default function ChildExpenseForm({
       {/* Amount + currency */}
       <div>
         <label className="block text-xs font-medium text-ink-500 mb-2 px-1">
-          Montant dépensé
+          Montant dépensé (à rembourser par les parents)
         </label>
         <div className="flex items-center gap-3 bg-ink-50 rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-accent-500 transition">
           <input
@@ -138,7 +135,7 @@ export default function ChildExpenseForm({
         <label className="block text-xs font-medium text-ink-500 mb-2 px-1">
           Catégorie
         </label>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {childCategories.map((c) => (
             <button
               key={c.value}
@@ -157,39 +154,6 @@ export default function ChildExpenseForm({
               </span>
             </button>
           ))}
-        </div>
-      </div>
-
-      {/* Reimbursable toggle */}
-      <div>
-        <label className="block text-xs font-medium text-ink-500 mb-2 px-1">
-          Cette dépense
-        </label>
-        <div className="grid grid-cols-2 gap-2 bg-ink-100 rounded-2xl p-1">
-          <button
-            type="button"
-            onClick={() => setReimbursable(true)}
-            className={cn(
-              "py-2.5 rounded-xl text-sm font-medium transition",
-              reimbursable
-                ? "bg-white text-ink-900 shadow-sm"
-                : "text-ink-500"
-            )}
-          >
-            À rembourser
-          </button>
-          <button
-            type="button"
-            onClick={() => setReimbursable(false)}
-            className={cn(
-              "py-2.5 rounded-xl text-sm font-medium transition",
-              !reimbursable
-                ? "bg-white text-ink-900 shadow-sm"
-                : "text-ink-500"
-            )}
-          >
-            De ma poche
-          </button>
         </div>
       </div>
 
@@ -222,30 +186,11 @@ export default function ChildExpenseForm({
 
       {/* Preview */}
       {numAmount > 0 && (
-        <div
-          className={cn(
-            "rounded-2xl p-3 text-sm",
-            reimbursable
-              ? "bg-warm-500/10 text-warm-600"
-              : "bg-ink-50 text-ink-600"
-          )}
-        >
-          {reimbursable ? (
-            <>
-              <span className="font-medium">Tes parents</span> te devront{" "}
-              <span className="font-semibold tabular-nums">
-                {formatMoney(numAmount, currency)}
-              </span>
-            </>
-          ) : (
-            <>
-              Dépense personnelle,{" "}
-              <span className="font-semibold tabular-nums">
-                {formatMoney(numAmount, currency)}
-              </span>{" "}
-              de ta poche.
-            </>
-          )}
+        <div className="rounded-2xl p-3 text-sm bg-warm-500/10 text-warm-600">
+          <span className="font-medium">Tes parents</span> te devront{" "}
+          <span className="font-semibold tabular-nums">
+            {formatMoney(numAmount, currency)}
+          </span>
         </div>
       )}
 
