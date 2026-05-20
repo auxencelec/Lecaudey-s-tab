@@ -57,7 +57,22 @@ export default async function TransactionDetailPage({
   const amount = Number(tx.amount);
   const isCredit = amount >= 0;
 
-  const canModify = me.role === "parent" || tx.created_by === me.id;
+  // Parents: full access.
+  // Children: only on their own transactions, and only while any linked
+  // advance is still open (not fully reimbursed).
+  const advanceIsClosed = linkedAdvance?.status === "closed";
+  const canModify =
+    me.role === "parent" ||
+    (tx.created_by === me.id && !advanceIsClosed);
+
+  const lockReason =
+    me.role === "parent"
+      ? null
+      : tx.created_by !== me.id
+      ? "Tu ne peux modifier que tes propres transactions."
+      : advanceIsClosed
+      ? "Cette transaction est verrouillée car le remboursement a été effectué."
+      : null;
 
   return (
     <div className="space-y-6">
@@ -151,9 +166,15 @@ export default async function TransactionDetailPage({
       {canModify ? (
         <TransactionActions tx={tx} linkedAdvance={linkedAdvance ?? null} />
       ) : (
-        <p className="text-xs text-ink-400 text-center">
-          Tu ne peux pas modifier cette transaction.
-        </p>
+        <div className="bg-ink-50 rounded-2xl p-4 text-center">
+          <div className="w-10 h-10 rounded-full bg-ink-100 mx-auto mb-2 flex items-center justify-center text-ink-500">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+          </div>
+          <p className="text-sm text-ink-600">{lockReason}</p>
+        </div>
       )}
     </div>
   );
