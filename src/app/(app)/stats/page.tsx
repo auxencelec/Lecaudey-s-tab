@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 import { convert } from "@/lib/currency/convert";
 import { compactFamilyAdvances } from "@/lib/settle";
 import { formatMoney, CATEGORY_MAP } from "@/lib/utils";
-import type { Profile, Transaction, Advance } from "@/lib/db.types";
+import type { Profile, Transaction, Advance, Budget } from "@/lib/db.types";
 import { format, parseISO, subDays, subMonths, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import Avatar from "@/components/Avatar";
@@ -72,6 +72,14 @@ export default async function StatsPage({
     .select("*")
     .neq("status", "closed")
     .returns<Advance[]>();
+
+  // Active budgets (for consumption display)
+  const { data: budgets } = await supabase
+    .from("budgets")
+    .select("*")
+    .eq("family_id", me.family_id)
+    .eq("active", true)
+    .returns<Budget[]>();
 
   const profilesById = new Map((members ?? []).map((m) => [m.id, m]));
 
@@ -150,6 +158,44 @@ export default async function StatsPage({
     netFamilyOpen += await convert(Number(a.remaining), a.currency, display);
   }
 
+  // 6. Budget consumption per budget (full lifetime, not period-bounded)
+  const budgetRows: {
+    id: string;
+    label: string;
+    emoji: string;
+    used: number;
+    total: number;
+    currency: string;
+    pct: number;
+    over: boolean;
+  }[] = [];
+  for (const b of budgets ?? []) {
+    const { data: btx } = await supabase
+      .from("transactions")
+      .select("amount, currency, occurred_on")
+      .eq("category", b.category)
+      .gte("occurred_on", b.start_date)
+      .lte("occurred_on", b.end_date ?? "2999-12-31")
+      .lt("amount", 0)
+      .returns<Pick<Transaction, "amount" | "currency" | "occurred_on">[]>();
+    let used = 0;
+    for (const t of btx ?? []) {
+      used += await convert(Math.abs(Number(t.amount)), t.currency, b.currency);
+    }
+    const total = Number(b.amount);
+    const cat = CATEGORY_MAP[b.category];
+    budgetRows.push({
+      id: b.id,
+      label: b.description || cat?.label || b.category,
+      emoji: cat?.emoji ?? "📌",
+      used,
+      total,
+      currency: b.currency,
+      pct: total > 0 ? Math.min(100, (used / total) * 100) : 0,
+      over: used > total,
+    });
+  }
+
   return (
     <div className="space-y-7">
       {/* Header */}
@@ -203,6 +249,61 @@ export default async function StatsPage({
           sub={`sur ${period.label}`}
         />
       </div>
+
+      {/* Budgets */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs uppercase tracking-widest text-ink-400 font-medium">
+            Budgets
+          </h2>
+          <Link href="/budgets" className="text-xs text-accent-700 hover:text-accent-900">
+            Gérer →
+          </Link>
+        </div>
+        {budgetRows.length > 0 ? (
+          <div className="space-y-3">
+            {budgetRows.map((b) => (
+              <Link
+                key={b.id}
+                href={isParent ? `/budgets/${b.id}` : "/budgets"}
+                className="block"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-base">{b.emoji}</span>
+                  <span className="text-sm font-medium flex-1">{b.label}</span>
+                  <span
+                    className={`text-sm font-semibold tabular-nums ${
+                      b.over ? "text-bad-600" : "text-ink-900"
+                    }`}
+                  >
+                    {formatMoney(b.used, b.currency)}
+                  </span>
+                  <span className="text-xs text-ink-400 tabular-nums">
+                    / {formatMoney(b.total, b.currency)}
+                  </span>
+                </div>
+                <div className="h-2 bg-ink-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      b.over ? "bg-bad-500" : "bg-accent-600"
+                    }`}
+                    style={{ width: `${b.pct}%` }}
+                  />
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-ink-50 rounded-2xl p-4 text-center text-sm text-ink-500">
+            Aucun budget défini.{" "}
+            {isParent && (
+              <Link href="/budgets/new" className="text-accent-700">
+                En créer un →
+              </Link>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* Category breakdown */}
       <section>

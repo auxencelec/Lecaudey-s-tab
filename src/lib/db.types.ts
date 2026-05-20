@@ -88,3 +88,35 @@ export type Allowance = {
   last_paid_on: string | null;
   created_at: string;
 };
+
+export type RequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export type MoneyRequest = {
+  id: string;
+  family_id: string;
+  child_id: string;
+  amount: number;
+  currency: string;
+  category: Transaction["category"];
+  description: string | null;
+  status: RequestStatus;
+  created_at: string;
+  decided_at: string | null;
+  decided_by: string | null;
+  decision_note: string | null;
+  approved_transaction_id: string | null;
+};
+
+export type Budget = {
+  id: string;
+  family_id: string;
+  category: Transaction["category"];
+  amount: number;
+  currency: string;
+  start_date: string;
+  end_date: string | null;
+  description: string | null;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+};

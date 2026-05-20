@@ -254,6 +254,28 @@ export default function SettingsForm({
 
       <hr className="border-ink-100" />
 
+      {/* Budgets management link (parents only) */}
+      {me.role === "parent" && (
+        <a
+          href="/budgets"
+          className="flex items-center justify-between p-4 rounded-2xl bg-ink-50 hover:bg-ink-100 transition"
+        >
+          <div>
+            <div className="font-medium text-sm text-ink-900">
+              Gérer les budgets
+            </div>
+            <div className="text-xs text-ink-500 mt-0.5">
+              Allouer un montant par catégorie (vacances, transport…)
+            </div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-400">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </a>
+      )}
+
+      <hr className="border-ink-100" />
+
       <form action="/auth/signout" method="post">
         <button
           type="submit"

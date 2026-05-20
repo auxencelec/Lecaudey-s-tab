@@ -7,10 +7,16 @@ export const dynamic = "force-dynamic";
 import { convert } from "@/lib/currency/convert";
 import { compactFamilyAdvances } from "@/lib/settle";
 import { formatMoney, CATEGORY_MAP } from "@/lib/utils";
-import type { Profile, Transaction, Advance } from "@/lib/db.types";
+import type {
+  Profile,
+  Transaction,
+  Advance,
+  MoneyRequest,
+} from "@/lib/db.types";
 import { format, parseISO, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
 import Avatar from "@/components/Avatar";
+import RequestRow from "@/components/RequestRow";
 
 function relativeLabel(iso: string) {
   const d = parseISO(iso);
@@ -76,7 +82,15 @@ export default async function DashboardPage() {
     .limit(12)
     .returns<Transaction[]>();
 
+  const { data: pendingRequests } = await supabase
+    .from("requests")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .returns<MoneyRequest[]>();
+
   const profilesById = new Map((members ?? []).map((m) => [m.id, m]));
+  const parentsList = (members ?? []).filter((m) => m.role === "parent");
 
   // ---- Compute NET per "other party" ----
   // Convention: netByOther.get(X) > 0  →  I owe X (positive amount)
@@ -145,7 +159,7 @@ export default async function DashboardPage() {
 
       {/* Hero — net status (child viewer) */}
       {!isParent && (
-        <section>
+        <section className="space-y-3">
           {totalNet < 0 ? (
             <div className="bg-good-500/10 rounded-3xl p-5">
               <p className="text-xs uppercase tracking-widest text-good-600 font-medium">
@@ -183,6 +197,48 @@ export default async function DashboardPage() {
               </div>
             </div>
           )}
+
+          <Link
+            href="/requests/new"
+            className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-accent-50 hover:bg-accent-100 text-accent-700 transition"
+          >
+            <div>
+              <div className="font-medium text-sm">Demander de l&apos;argent</div>
+              <div className="text-xs text-accent-600/80">
+                Tes parents valideront avant l&apos;envoi
+              </div>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </Link>
+        </section>
+      )}
+
+      {/* Pending requests (parent: action; child: status) */}
+      {pendingRequests && pendingRequests.length > 0 && (
+        <section>
+          <h2 className="text-xs uppercase tracking-widest text-ink-400 font-medium mb-3">
+            {isParent
+              ? `${pendingRequests.length} demande${
+                  pendingRequests.length > 1 ? "s" : ""
+                } en attente`
+              : "Mes demandes en attente"}
+          </h2>
+          <div className="space-y-2">
+            {pendingRequests
+              .filter((r) => isParent || r.child_id === me.id)
+              .map((r) => (
+                <RequestRow
+                  key={r.id}
+                  request={r}
+                  child={profilesById.get(r.child_id)}
+                  parents={parentsList}
+                  viewerIsParent={isParent}
+                  viewerId={me.id}
+                />
+              ))}
+          </div>
         </section>
       )}
 
