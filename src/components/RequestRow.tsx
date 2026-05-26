@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatMoney, CATEGORY_MAP } from "@/lib/utils";
+import { recomputeFamilyAdvances } from "@/lib/settle";
 import type { MoneyRequest, Profile } from "@/lib/db.types";
 import Avatar from "@/components/Avatar";
 
@@ -77,6 +78,15 @@ export default function RequestRow({
         approved_transaction_id: tx?.id ?? null,
       })
       .eq("id", request.id);
+
+    // Rebuild advances based on the (just-inserted) transaction.
+    if (request.family_id) {
+      await recomputeFamilyAdvances(
+        supabase,
+        request.family_id,
+        parents.map((p) => p.id)
+      );
+    }
 
     setLoading(false);
     if (upErr) {

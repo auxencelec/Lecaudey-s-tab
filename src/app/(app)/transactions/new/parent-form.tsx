@@ -7,7 +7,7 @@ import { cn, formatMoney } from "@/lib/utils";
 import type { Profile, Space } from "@/lib/db.types";
 import CurrencySelect from "@/components/CurrencySelect";
 import Avatar from "@/components/Avatar";
-import { settleOrCreateAdvance } from "@/lib/settle";
+import { recomputeFamilyAdvances } from "@/lib/settle";
 
 type Kind = "allowance" | "loan";
 
@@ -63,21 +63,18 @@ export default function ParentGiveForm({
     setLoading(true);
     const supabase = createClient();
 
-    // Both kinds add a positive transaction to the child's wallet record.
-    const { data: txRow, error: txErr } = await supabase
-      .from("transactions")
-      .insert({
-        space_id: space.id,
-        created_by: me.id,
-        concerns_id: childId,
-        amount: Math.abs(numAmount),
-        currency,
-        category: kind === "allowance" ? "argent_de_poche" : "avance",
-        description: description || null,
-        occurred_on: date,
-      })
-      .select()
-      .single();
+    // Insert the transaction. Advances are then recomputed from the
+    // full transaction history.
+    const { error: txErr } = await supabase.from("transactions").insert({
+      space_id: space.id,
+      created_by: me.id,
+      concerns_id: childId,
+      amount: Math.abs(numAmount),
+      currency,
+      category: kind === "allowance" ? "argent_de_poche" : "avance",
+      description: description || null,
+      occurred_on: date,
+    });
 
     if (txErr) {
       setError(txErr.message);
@@ -85,28 +82,11 @@ export default function ParentGiveForm({
       return;
     }
 
-    // For a loan, net the new debt (child owes family) against any
-    // existing opposite advances (family owes child) before creating
-    // a new one.
-    if (kind === "loan") {
-      const result = await settleOrCreateAdvance({
-        supabase,
-        family_id: me.family_id,
-        space_id: space.id,
-        new_debtor_id: childId,
-        new_creditor_id: familyRep.id,
-        amount: Math.abs(numAmount),
-        currency,
-        description: description || null,
-        source_transaction_id: txRow?.id ?? null,
-        parent_ids: parents.map((p) => p.id),
-      });
-      if (!result.ok) {
-        setError(result.error ?? "Erreur d'enregistrement.");
-        setLoading(false);
-        return;
-      }
-    }
+    await recomputeFamilyAdvances(
+      supabase,
+      me.family_id,
+      parents.map((p) => p.id)
+    );
 
     router.refresh();
     router.push("/");

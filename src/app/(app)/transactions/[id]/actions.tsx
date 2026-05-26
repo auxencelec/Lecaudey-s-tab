@@ -4,14 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, cn } from "@/lib/utils";
+import { recomputeFamilyAdvances } from "@/lib/settle";
 import type { Transaction, Advance } from "@/lib/db.types";
 
 export default function TransactionActions({
   tx,
   linkedAdvance,
+  familyId,
+  parentIds,
 }: {
   tx: Transaction;
   linkedAdvance: Advance | null;
+  familyId: string;
+  parentIds: string[];
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit" | "confirm-delete">("view");
@@ -48,26 +53,26 @@ export default function TransactionActions({
     setError(null);
     setLoading(true);
     const supabase = createClient();
+
+    // 1. Delete the transaction (and any direct FK link to advances).
     if (linkedAdvance) {
-      const { error: advErr } = await supabase
-        .from("advances")
-        .delete()
-        .eq("id", linkedAdvance.id);
-      if (advErr) {
-        setError(advErr.message);
-        setLoading(false);
-        return;
-      }
+      await supabase.from("advances").delete().eq("id", linkedAdvance.id);
     }
     const { error: txErr } = await supabase
       .from("transactions")
       .delete()
       .eq("id", tx.id);
-    setLoading(false);
+
     if (txErr) {
       setError(txErr.message);
+      setLoading(false);
       return;
     }
+
+    // 2. Rebuild the family's debt state from the remaining transactions.
+    await recomputeFamilyAdvances(supabase, familyId, parentIds);
+
+    setLoading(false);
     router.replace("/");
     router.refresh();
   }

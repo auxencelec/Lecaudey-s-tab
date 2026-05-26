@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, cn, formatMoney } from "@/lib/utils";
 import type { Profile, Space } from "@/lib/db.types";
 import CurrencySelect from "@/components/CurrencySelect";
-import { settleOrCreateAdvance } from "@/lib/settle";
+import { recomputeFamilyAdvances } from "@/lib/settle";
 
 export default function ChildExpenseForm({
   me,
@@ -63,9 +63,9 @@ export default function ChildExpenseForm({
     setLoading(true);
     const supabase = createClient();
 
-    // Every child expense is reimbursable by the parents — track it
-    // as a debit on the child's ledger.
-    const { data: txRow, error: txErr } = await supabase
+    // Insert the expense. The advances table is derived from transactions —
+    // recompute it right after so the dashboard reflects the new debt.
+    const { error: txErr } = await supabase
       .from("transactions")
       .insert({
         space_id: space.id,
@@ -76,9 +76,7 @@ export default function ChildExpenseForm({
         category,
         description: description || null,
         occurred_on: date,
-      })
-      .select()
-      .single();
+      });
 
     if (txErr) {
       setError(txErr.message);
@@ -86,24 +84,11 @@ export default function ChildExpenseForm({
       return;
     }
 
-    // Net the new family debt against any existing opposite advances.
-    const result = await settleOrCreateAdvance({
+    await recomputeFamilyAdvances(
       supabase,
-      family_id: me.family_id,
-      space_id: space.id,
-      new_debtor_id: familyRep.id,
-      new_creditor_id: me.id,
-      amount: Math.abs(numAmount),
-      currency,
-      description: description || null,
-      source_transaction_id: txRow?.id ?? null,
-      parent_ids: parents.map((p) => p.id),
-    });
-    if (!result.ok) {
-      setError(result.error ?? "Erreur d'enregistrement.");
-      setLoading(false);
-      return;
-    }
+      me.family_id,
+      parents.map((p) => p.id)
+    );
 
     router.refresh();
     router.push("/");

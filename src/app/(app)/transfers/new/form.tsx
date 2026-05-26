@@ -7,7 +7,7 @@ import { formatMoney, cn } from "@/lib/utils";
 import type { Profile, Space, Advance } from "@/lib/db.types";
 import Avatar from "@/components/Avatar";
 import CurrencySelect from "@/components/CurrencySelect";
-import { settleOrCreateAdvance } from "@/lib/settle";
+import { recomputeFamilyAdvances } from "@/lib/settle";
 
 export default function TransferForm({
   me,
@@ -121,37 +121,16 @@ export default function TransferForm({
     setLoading(true);
     const supabase = createClient();
 
-    // Payment from A (fromId) to B (toId):
-    //   - Reduces any existing A-owes-B debts (oldest first)
-    //   - If A overpays, creates a new B-owes-A advance for the surplus
-    // The helper handles both, treating parents as a single entity.
-    const settle = await settleOrCreateAdvance({
-      supabase,
-      family_id: me.family_id,
-      space_id: targetSpace.id,
-      new_debtor_id: toId, // the recipient becomes the new debtor if there's a surplus
-      new_creditor_id: fromId,
-      amount: Math.abs(num),
-      currency,
-      description: description || null,
-      source_transaction_id: null,
-      parent_ids: Array.from(parentIds),
-    });
-    if (!settle.ok) {
-      setError(settle.error ?? "Erreur d'enregistrement.");
-      setLoading(false);
-      return;
-    }
-
-    // Record the payment as a transaction for the history feed.
-    const wasReimbursement = settle.appliedToExisting > 0;
+    // Record the payment as a transaction. The advances table is then
+    // recomputed from the full ledger so the dashboard reflects the
+    // updated net debt.
     const { error: insErr } = await supabase.from("transactions").insert({
       space_id: targetSpace.id,
       created_by: me.id,
       concerns_id: toId,
       amount: Math.abs(num),
       currency,
-      category: wasReimbursement ? "remboursement" : "autre",
+      category: "remboursement",
       description:
         description ||
         `${from?.full_name.split(" ")[0]} → ${to?.full_name.split(" ")[0]}`,
@@ -162,6 +141,12 @@ export default function TransferForm({
       setLoading(false);
       return;
     }
+
+    await recomputeFamilyAdvances(
+      supabase,
+      me.family_id,
+      Array.from(parentIds)
+    );
 
     router.refresh();
     router.push("/");

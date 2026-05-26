@@ -164,7 +164,14 @@ export default async function TransactionDetailPage({
       )}
 
       {canModify ? (
-        <TransactionActions tx={tx} linkedAdvance={linkedAdvance ?? null} />
+        <TransactionActions
+          tx={tx}
+          linkedAdvance={linkedAdvance ?? null}
+          familyId={me.family_id}
+          parentIds={(members ?? [])
+            .filter((m) => m.role === "parent")
+            .map((m) => m.id)}
+        />
       ) : (
         <div className="bg-ink-50 rounded-2xl p-4 text-center">
           <div className="w-10 h-10 rounded-full bg-ink-100 mx-auto mb-2 flex items-center justify-center text-ink-500">
