@@ -26,14 +26,14 @@ export function formatMoney(amount: number, currency: string, locale = "fr-FR") 
  * emojis on buttons, status messages, or banners.
  */
 export const CATEGORIES = [
-  { value: "argent_de_poche", label: "Argent de poche", emoji: "💶" },
-  { value: "vacances", label: "Vacances", emoji: "🏖️" },
-  { value: "loyer", label: "Loyer", emoji: "🏠" },
-  { value: "transport", label: "Transport / billets", emoji: "🚆" },
-  { value: "cadeau", label: "Cadeau", emoji: "🎁" },
-  { value: "avance", label: "Avance", emoji: "↩️" },
-  { value: "remboursement", label: "Remboursement", emoji: "✅" },
-  { value: "autre", label: "Autre", emoji: "📌" },
+  { value: "argent_de_poche", label: "Argent de poche", emoji: "💶", color: "#10b981" },
+  { value: "vacances", label: "Vacances", emoji: "🏖️", color: "#06b6d4" },
+  { value: "loyer", label: "Loyer", emoji: "🏠", color: "#6366f1" },
+  { value: "transport", label: "Transport / billets", emoji: "🚆", color: "#8b5cf6" },
+  { value: "cadeau", label: "Cadeau", emoji: "🎁", color: "#ec4899" },
+  { value: "avance", label: "Avance", emoji: "↩️", color: "#f59e0b" },
+  { value: "remboursement", label: "Remboursement", emoji: "✅", color: "#22c55e" },
+  { value: "autre", label: "Autre", emoji: "📌", color: "#64748b" },
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number]["value"];

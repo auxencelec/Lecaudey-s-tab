@@ -88,7 +88,7 @@ export default function BottomNav() {
           </Link>
         </div>
 
-        {tab("/stats", "Récap", StatsIcon, pathname.startsWith("/stats"))}
+        {tab("/stats", "Stats", StatsIcon, pathname.startsWith("/stats"))}
         {tab("/settings", "Moi", UserIcon, pathname.startsWith("/settings"))}
       </div>
     </nav>
