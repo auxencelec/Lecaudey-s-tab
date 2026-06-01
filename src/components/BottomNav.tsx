@@ -22,13 +22,12 @@ function PayIcon({ filled }: { filled?: boolean }) {
     </svg>
   );
 }
-function StatsIcon({ filled }: { filled?: boolean }) {
+function HistoryIcon({ filled }: { filled?: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 21h18" />
-      <rect x="5" y="11" width="3" height="8" rx="1" />
-      <rect x="10.5" y="6" width="3" height="13" rx="1" />
-      <rect x="16" y="14" width="3" height="5" rx="1" />
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 3v5h5" />
+      <path d="M12 7v5l3 2" />
     </svg>
   );
 }
@@ -88,7 +87,7 @@ export default function BottomNav() {
           </Link>
         </div>
 
-        {tab("/stats", "Stats", StatsIcon, pathname.startsWith("/stats"))}
+        {tab("/historique", "Historique", HistoryIcon, pathname.startsWith("/historique"))}
         {tab("/settings", "Moi", UserIcon, pathname.startsWith("/settings"))}
       </div>
     </nav>

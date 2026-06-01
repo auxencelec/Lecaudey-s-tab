@@ -6,24 +6,16 @@ export const dynamic = "force-dynamic";
 
 import { convert } from "@/lib/currency/convert";
 import { compactFamilyAdvances } from "@/lib/settle";
-import { formatMoney, CATEGORY_MAP } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 import type {
   Profile,
   Transaction,
   Advance,
   MoneyRequest,
 } from "@/lib/db.types";
-import { format, parseISO, isToday, isYesterday } from "date-fns";
-import { fr } from "date-fns/locale";
 import Avatar from "@/components/Avatar";
 import RequestRow from "@/components/RequestRow";
-
-function relativeLabel(iso: string) {
-  const d = parseISO(iso);
-  if (isToday(d)) return "Aujourd'hui";
-  if (isYesterday(d)) return "Hier";
-  return format(d, "d MMM", { locale: fr });
-}
+import { HistoryItem } from "@/components/HistoryItem";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -79,7 +71,7 @@ export default async function DashboardPage() {
     .select("*")
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
-    .limit(12)
+    .limit(5)
     .returns<Transaction[]>();
 
   const { data: pendingRequests } = await supabase
@@ -91,6 +83,10 @@ export default async function DashboardPage() {
 
   const profilesById = new Map((members ?? []).map((m) => [m.id, m]));
   const parentsList = (members ?? []).filter((m) => m.role === "parent");
+  const parentSet = new Set(parentIds);
+  const childSet = new Set(
+    (members ?? []).filter((m) => m.role === "child").map((m) => m.id)
+  );
 
   // ---- Compute NET per "other party" ----
   // Convention: netByOther.get(X) > 0  →  I owe X (positive amount)
@@ -306,48 +302,33 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* Recent activity */}
+      {/* Recent activity (snippet) */}
       <section>
-        <h2 className="text-xs uppercase tracking-widest text-ink-400 font-medium mb-3">
-          Activité récente
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs uppercase tracking-widest text-ink-400 font-medium">
+            Activité récente
+          </h2>
+          {recent && recent.length > 0 && (
+            <Link
+              href="/historique"
+              className="text-xs text-accent-700 hover:text-accent-900"
+            >
+              Tout voir →
+            </Link>
+          )}
+        </div>
         {recent && recent.length > 0 ? (
-          <div className="space-y-1.5">
-            {recent.map((t) => {
-              const cat = CATEGORY_MAP[t.category];
-              const concerns = t.concerns_id
-                ? profilesById.get(t.concerns_id)
-                : null;
-              const amount = Number(t.amount);
-              return (
-                <Link
-                  key={t.id}
-                  href={`/transactions/${t.id}`}
-                  className="flex items-center gap-3 py-2.5 px-3 -mx-3 rounded-2xl hover:bg-ink-50 active:bg-ink-100 transition"
-                >
-                  <div className="w-10 h-10 rounded-full bg-ink-100 flex items-center justify-center text-lg">
-                    {cat?.emoji ?? "📌"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-ink-900 truncate">
-                      {t.description || cat?.label}
-                    </div>
-                    <div className="text-xs text-ink-400 truncate">
-                      {concerns?.full_name.split(" ")[0] ?? "Groupe"} ·{" "}
-                      {relativeLabel(t.occurred_on)}
-                    </div>
-                  </div>
-                  <div
-                    className={`tabular-nums font-semibold text-sm whitespace-nowrap ${
-                      amount < 0 ? "text-bad-600" : "text-good-600"
-                    }`}
-                  >
-                    {amount >= 0 ? "+" : ""}
-                    {formatMoney(amount, t.currency)}
-                  </div>
-                </Link>
-              );
-            })}
+          <div className="divide-y divide-ink-100">
+            {recent.map((t) => (
+              <HistoryItem
+                key={t.id}
+                tx={t}
+                viewer={me}
+                profilesById={profilesById}
+                parentIds={parentSet}
+                childIds={childSet}
+              />
+            ))}
           </div>
         ) : (
           <div className="py-12 text-center">
